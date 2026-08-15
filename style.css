@@ -1,0 +1,83 @@
+:root {
+  --primary: #0abab5;
+  --primary-dark: #078e8a;
+  --primary-light: #d3f3f1;
+  --primary-lighter: #eefbfa;
+  --page-background: #f4f7fb;
+  --card-background: #ffffff;
+  --text: #1f2937;
+  --muted-text: #6b7280;
+  --border: #e5e7eb;
+  --error: #ef4444;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--page-background);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+}
+
+.container { width: min(100% - 32px, 760px); margin: 0 auto; padding: 48px 0 64px; }
+.page-header { margin-bottom: 24px; }
+.eyebrow, .section-kicker { margin: 0 0 7px; color: var(--primary-dark); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.1em; }
+h1, h2, p { margin-top: 0; }
+h1 { margin-bottom: 10px; font-size: clamp(1.65rem, 5vw, 2rem); letter-spacing: 0.02em; }
+h2 { margin-bottom: 0; font-size: 1.15rem; }
+.today-date { margin-bottom: 0; color: var(--muted-text); font-size: 0.98rem; }
+
+.card { background: var(--card-background); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 4px 14px rgba(31, 41, 55, 0.04); }
+.today-card { padding: 24px; margin-bottom: 20px; }
+.section-heading, .monthly-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.section-kicker { margin-bottom: 5px; }
+.status-badge { flex: 0 0 auto; padding: 6px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
+.status-badge.is-submitted { background: var(--primary-light); color: var(--primary-dark); }
+.status-badge.is-pending { background: #fee2e2; color: #b91c1c; }
+.status-badge.is-closed { background: #f3f4f6; color: var(--muted-text); }
+.today-content { margin-top: 22px; }
+.status-text { margin-bottom: 6px; font-size: 1.2rem; font-weight: 800; }
+.status-text.pending { color: var(--error); }
+.submitted-time { margin-bottom: 18px; color: var(--muted-text); font-size: 0.92rem; }
+button { appearance: none; border: 0; border-radius: 9px; background: var(--primary); color: white; cursor: pointer; font: inherit; font-weight: 700; transition: background 0.15s ease, transform 0.15s ease; }
+button:hover { background: var(--primary-dark); }
+button:focus-visible, input:focus-visible { outline: 3px solid rgba(10, 186, 181, 0.35); outline-offset: 2px; }
+.submit-button { width: 100%; max-width: 320px; padding: 13px 18px; }
+
+.monthly-card { padding: 24px 0 16px; overflow: hidden; }
+.monthly-top { padding: 0 24px; margin-bottom: 20px; }
+.month-picker-label { display: grid; gap: 5px; color: var(--muted-text); font-size: 0.75rem; font-weight: 700; }
+input[type="month"] { min-height: 38px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text); font: inherit; padding: 6px 8px; }
+.summary { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 24px 20px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.summary-item { padding: 14px 12px; text-align: center; }
+.summary-item + .summary-item { border-left: 1px solid var(--border); }
+.summary-item span { display: block; color: var(--muted-text); font-size: 0.75rem; }
+.summary-item strong { display: block; margin-top: 5px; color: var(--text); font-size: 1rem; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; min-width: 510px; border-collapse: collapse; font-size: 0.9rem; }
+th { padding: 11px 24px; background: var(--primary-lighter); color: var(--primary-dark); font-size: 0.78rem; text-align: left; }
+td { padding: 13px 24px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: 0; }
+.row-status { font-weight: 700; }
+.row-status.submitted { color: var(--primary-dark); }
+.row-status.pending { color: var(--error); }
+.row-status.future, .dash { color: var(--muted-text); }
+.register-button { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; font-size: 0.78rem; white-space: nowrap; }
+.register-button span { color: #fee2e2; font-weight: 800; }
+.table-note { margin: 14px 24px 0; color: var(--muted-text); font-size: 0.78rem; }
+
+@media (max-width: 560px) {
+  .container { width: min(100% - 24px, 760px); padding-top: 32px; }
+  .today-card { padding: 20px; }
+  .monthly-card { padding-top: 20px; }
+  .monthly-top { padding: 0 20px; flex-direction: column; }
+  .month-picker-label { width: 100%; }
+  input[type="month"] { width: 100%; }
+  .summary { margin: 0 20px 18px; }
+  .summary-item { padding: 12px 6px; }
+  th { padding: 10px 16px; }
+  td { padding: 12px 16px; }
+  .table-note { margin-left: 20px; margin-right: 20px; }
+}
