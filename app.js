@@ -1,45 +1,129 @@
-/* global supabase */
 (() => {
-  'use strict';
-  const cfg = window.APP_CONFIG || {};
-  const $ = (s) => document.querySelector(s);
-  const views = ['loadingView', 'setupView', 'loginView', 'mainView'];
-  let client, user, profile, reports = [], team = [], activePanel = 'home';
-  const jp = new Intl.DateTimeFormat('ja-JP', { timeZone: cfg.TIMEZONE || 'Asia/Tokyo', year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
-  const dateFormatter = new Intl.DateTimeFormat('sv-SE', { timeZone: cfg.TIMEZONE || 'Asia/Tokyo' });
-  const pad = (n) => String(n).padStart(2, '0');
-  const dateKey = (d = new Date()) => dateFormatter.format(d);
-  const localDate = (key) => new Date(`${key}T12:00:00`);
-  const isBusinessDay = (key) => { const day = localDate(key).getDay(); return day !== 0 && day !== 6; };
-  const isLate = (timestamp, key) => timestamp && new Date(timestamp).getTime() > new Date(`${key}T${cfg.DEADLINE || '17:30'}:00+09:00`).getTime();
-  const displayTime = (timestamp) => timestamp ? new Intl.DateTimeFormat('ja-JP', { timeZone: cfg.TIMEZONE || 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }).format(new Date(timestamp)) : '—';
-  const escape = (v = '') => String(v).replace(/[&<>'"]/g, x => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[x]));
-  function showView(id) { views.forEach(v => $(`#${v}`).classList.toggle('hidden', v !== id)); }
-  function status(report, key) {
-    if (!isBusinessDay(key)) return { label: '対象外', className: 'exempt' };
-    if (!report) return { label: '未提出', className: 'missing' };
-    return isLate(report.submitted_at, key) ? { label: '遅延', className: 'late' } : { label: '提出済み', className: 'submitted' };
+  "use strict";
+
+  const STORAGE_KEY = "daily-report-submissions";
+  const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
+  const today = new Date();
+  const todayKey = toDateKey(today);
+
+  const elements = {
+    todayDate: document.getElementById("today-date"),
+    todayStatus: document.getElementById("today-status"),
+    submitButton: document.getElementById("submit-button"),
+    weekendMessage: document.getElementById("weekend-message"),
+    monthInput: document.getElementById("month-input"),
+    businessDays: document.getElementById("business-days"),
+    submittedDays: document.getElementById("submitted-days"),
+    submissionRate: document.getElementById("submission-rate"),
+    tableBody: document.getElementById("monthly-table-body")
+  };
+
+  function toDateKey(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   }
-  function reportFor(id, key) { return reports.find(r => r.user_id === id && r.report_date === key); }
-  function today() { return dateKey(); }
-  async function loadProfile() {
-    const { data, error } = await client.from('profiles').select('*').eq('id', user.id).single();
-    if (error) throw new Error('プロフィールを取得できません。管理者に profiles の登録を依頼してください。');
-    profile = data; $('#userName').textContent = profile.display_name || user.email; $('#roleBadge').textContent = profile.role === 'manager' ? '上司' : '社員';
-    const d = new Date(); $('#todayLabel').textContent = `今日は ${jp.format(d)}`;
-    const manager = profile.role === 'manager'; $('#managerTab').classList.toggle('hidden', !manager); $('#monthlyTab').classList.toggle('hidden', !manager);
+
+  function toMonthValue(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
   }
-  async function loadMyReports() { const start = new Date(); start.setDate(start.getDate() - 60); const { data, error } = await client.from('daily_reports').select('*').eq('user_id', user.id).gte('report_date', dateKey(start)); if (error) throw error; reports = data || []; }
-  function renderHome() { const key = today(), r = reportFor(user.id, key), s = status(r, key), target = $('#todayStatus'); if (!isBusinessDay(key)) { target.innerHTML = `<div class="report-state"><p class="status-large">本日は対象外です</p><p class="muted">土曜日・日曜日は提出不要です。</p></div>`; return; } if (r) { target.innerHTML = `<div class="report-state"><p class="status-large">✓ ${s.label}</p><p class="muted">本日 ${displayTime(r.submitted_at)} に提出しました</p></div>`; return; } target.innerHTML = `<div class="report-state"><p class="status-large">未提出</p><p class="muted">日報を提出したら、下のボタンで記録してください。</p><button id="submitReport" class="button primary submit-button">日報を提出済みにする</button></div>`; $('#submitReport').addEventListener('click', submitReport); }
-  async function submitReport() { const b = $('#submitReport'); b.disabled = true; b.textContent = '登録中...'; const { data, error } = await client.from('daily_reports').insert({ user_id: user.id, report_date: today() }).select().single(); if (error) { if (error.code === '23505') { await loadMyReports(); renderHome(); return; } b.disabled = false; b.textContent = '日報を提出済みにする'; alert(`登録できませんでした: ${error.message}`); return; } reports.push(data); renderHome(); renderHistory(); }
-  function lastBusinessDays(count) { const list = []; const d = new Date(); while (list.length < count) { const k = dateKey(d); if (isBusinessDay(k)) list.push(k); d.setDate(d.getDate() - 1); } return list; }
-  function renderHistory() { $('#historyList').innerHTML = lastBusinessDays(30).map(key => { const r = reportFor(user.id, key), s = status(r, key), dt = localDate(key); return `<div class="history-row"><div><strong>${dt.toLocaleDateString('ja-JP', { month:'numeric', day:'numeric' })}（${['日','月','火','水','木','金','土'][dt.getDay()]}）</strong></div><span class="status ${s.className}">${s.label}</span><time class="muted">${r ? displayTime(r.submitted_at) : '—'}</time></div>`; }).join(''); }
-  async function loadTeam() { if (profile.role !== 'manager') return; const start = new Date(); start.setDate(start.getDate() - 370); const [profilesResult, reportsResult] = await Promise.all([client.from('profiles').select('id,display_name,department').eq('manager_id', user.id).order('display_name'), client.from('daily_reports').select('*').gte('report_date', dateKey(start))]); if (profilesResult.error) throw profilesResult.error; if (reportsResult.error) throw reportsResult.error; team = profilesResult.data || []; reports = reportsResult.data || []; }
-  function renderDashboard() { const key = today(), business = isBusinessDay(key), rows = team.map(p => ({ p, r: reportFor(p.id, key) })); const submitted = rows.filter(x => x.r).length, missing = business ? team.length - submitted : 0, rate = team.length && business ? Math.round(submitted / team.length * 100) : 0; $('#kpiGrid').innerHTML = [[`対象者`, `${team.length}名`],[`提出済み`, `${submitted}名`],[`未提出`, `${missing}名`],[`本日の提出率`, business ? `${rate}%` : '対象外']].map(x => `<article class="card kpi"><p>${x[0]}</p><strong>${x[1]}</strong></article>`).join(''); const filtered = $('#unsubmittedFilter').checked ? rows.filter(x => !x.r && business) : rows; filtered.sort((a,b) => Number(!!b.r) - Number(!!a.r) || a.p.display_name.localeCompare(b.p.display_name, 'ja')); $('#teamList').innerHTML = filtered.length ? filtered.map(({p,r}) => { const s = status(r,key); return `<div class="team-row"><strong>${escape(p.display_name)}</strong><span class="muted department">${escape(p.department || '—')}</span><span class="status ${s.className}">${s.label}</span><time class="muted">${r ? displayTime(r.submitted_at) : '—'}</time></div>`; }).join('') : '<p class="empty">該当する社員はいません。</p>'; }
-  function businessDatesInMonth(month) { const [y,m] = month.split('-').map(Number), d = new Date(y,m-1,1), out=[]; while(d.getMonth() === m-1){const k=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; if(isBusinessDay(k))out.push(k);d.setDate(d.getDate()+1);}return out; }
-  function renderMonthly() { const keys = businessDatesInMonth($('#monthPicker').value), rows = team.map(p => { const rs = keys.map(k => ({ key:k, report:reportFor(p.id,k) })); const submitted=rs.filter(x => x.report), late=submitted.filter(x => isLate(x.report.submitted_at,x.key)).length, missing=keys.length-submitted.length; return {p,submitted:submitted.length,late,missing,rate:keys.length?Math.round(submitted.length/keys.length*100):0}; }); const allSubmitted=rows.reduce((n,r)=>n+r.submitted,0), total=keys.length*team.length, rate=total?Math.round(allSubmitted/total*100):0; $('#monthlyRate').innerHTML=`<strong>${rate}%</strong><p>${$('#monthPicker').value.replace('-','年')}月のチーム提出率（${allSubmitted} / ${total}件）</p>`; $('#monthlyList').innerHTML=rows.map(r=>`<tr><td>${escape(r.p.display_name)}</td><td>${escape(r.p.department||'—')}</td><td><span class="status submitted">${r.submitted}</span></td><td><span class="status late">${r.late}</span></td><td><span class="status missing">${r.missing}</span></td><td>${r.rate}%</td></tr>`).join('') || '<tr><td colspan="6">直属メンバーがいません。</td></tr>'; }
-  function selectPanel(name) { activePanel = name; ['home','history','dashboard','monthly'].forEach(x => { $(`#${x}Panel`).classList.toggle('hidden', x !== name); document.querySelector(`.tab[data-view="${x}"]`)?.classList.toggle('active', x === name); }); if(name === 'history')renderHistory(); if(name === 'dashboard')renderDashboard(); if(name === 'monthly')renderMonthly(); }
-  async function boot() { if (!cfg.SUPABASE_URL || cfg.SUPABASE_URL.includes('YOUR-') || !cfg.SUPABASE_ANON_KEY || cfg.SUPABASE_ANON_KEY.includes('YOUR-')) { showView('setupView'); return; } client = supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY); const {data:{session}}=await client.auth.getSession(); if (!session) { showView('loginView'); return; } user=session.user; try { await loadProfile(); await loadMyReports(); await loadTeam(); renderHome(); renderHistory(); selectPanel(activePanel); showView('mainView'); } catch(e) { alert(e.message || 'データの取得に失敗しました。'); await client.auth.signOut(); showView('loginView'); } }
-  $('#loginForm').addEventListener('submit', async e => { e.preventDefault(); const btn=e.submitter, err=$('#loginError'); btn.disabled=true; err.classList.add('hidden'); const {error}=await client.auth.signInWithPassword({email:$('#email').value.trim(),password:$('#password').value}); btn.disabled=false; if(error){err.textContent='ログインに失敗しました。メールアドレスとパスワードをご確認ください。';err.classList.remove('hidden');return;} boot(); });
-  $('#logoutButton').addEventListener('click', async()=>{await client.auth.signOut(); user=null; profile=null; reports=[]; showView('loginView');}); document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>selectPanel(b.dataset.view))); $('#unsubmittedFilter').addEventListener('change',renderDashboard); $('#monthPicker').addEventListener('change',renderMonthly); $('#monthPicker').value=dateKey().slice(0,7); boot();
+
+  function isBusinessDay(date) { return date.getDay() >= 1 && date.getDay() <= 5; }
+
+  function getRecords() {
+    try {
+      const records = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      return records && typeof records === "object" ? records : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function saveRecords(records) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  }
+
+  function formatTime(timestamp) {
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return "—";
+    return new Intl.DateTimeFormat("ja-JP", { hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
+  }
+
+  function renderToday() {
+    elements.todayDate.textContent = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日（${weekdays[today.getDay()]}）`;
+    const businessDay = isBusinessDay(today);
+    const record = getRecords()[todayKey];
+    elements.submitButton.hidden = Boolean(record);
+    elements.submitButton.disabled = !businessDay;
+    elements.weekendMessage.hidden = true;
+
+    if (!businessDay) {
+      elements.todayStatus.textContent = "本日は営業日ではありません";
+      elements.todayStatus.className = "today-status";
+    } else if (record) {
+      elements.todayStatus.innerHTML = `<span class="status-submitted">提出済 ☑</span><span class="registered-time">${formatTime(record)} に登録</span>`;
+    } else {
+      elements.todayStatus.innerHTML = '<span class="status-pending">未提出</span>';
+    }
+  }
+
+  function renderMonthly() {
+    const [yearString, monthString] = elements.monthInput.value.split("-");
+    const year = Number(yearString);
+    const month = Number(monthString) - 1;
+    if (!Number.isInteger(year) || !Number.isInteger(month)) return;
+
+    const records = getRecords();
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const rows = [];
+    let businessDayCount = 0;
+    let submittedCount = 0;
+
+    for (let day = 1; day <= lastDay; day += 1) {
+      const date = new Date(year, month, day);
+      if (!isBusinessDay(date)) continue;
+      businessDayCount += 1;
+      const key = toDateKey(date);
+      const record = records[key];
+      const isFuture = key > todayKey;
+      let status = "未提出";
+      let statusClass = "table-pending";
+      let time = "—";
+      let timeClass = "time-empty";
+
+      if (record) {
+        status = "提出済 ☑";
+        statusClass = "table-submitted";
+        time = formatTime(record);
+        timeClass = "";
+        submittedCount += 1;
+      } else if (isFuture) {
+        status = "—";
+        statusClass = "table-future";
+      }
+      rows.push(`<tr><td>${month + 1}/${day}</td><td>${weekdays[date.getDay()]}</td><td class="${statusClass}">${status}</td><td class="${timeClass}">${time}</td></tr>`);
+    }
+
+    const rate = businessDayCount === 0 ? 0 : Math.round((submittedCount / businessDayCount) * 100);
+    elements.businessDays.textContent = `${businessDayCount}日`;
+    elements.submittedDays.textContent = `${submittedCount}日`;
+    elements.submissionRate.textContent = `${rate}%`;
+    elements.tableBody.innerHTML = rows.join("");
+  }
+
+  elements.submitButton.addEventListener("click", () => {
+    if (!isBusinessDay(today)) return;
+    const records = getRecords();
+    if (records[todayKey]) return;
+    records[todayKey] = new Date().toISOString();
+    saveRecords(records);
+    renderToday();
+    renderMonthly();
+  });
+
+  elements.monthInput.value = toMonthValue(today);
+  elements.monthInput.addEventListener("change", renderMonthly);
+  renderToday();
+  renderMonthly();
 })();
