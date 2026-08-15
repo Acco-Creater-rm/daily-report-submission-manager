@@ -1,28 +1,60 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0ABAB5"><title>業務日報 提出管理</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="1人用の業務日報提出状況管理アプリ" />
+  <title>業務日報 提出管理</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main id="app" class="app-shell" aria-live="polite">
-    <section id="loadingView" class="auth-view"><div class="brand-mark">✓</div><p>読み込み中...</p></section>
-    <section id="setupView" class="auth-view hidden"><div class="brand-mark">!</div><h1>初期設定が必要です</h1><p>config.js に Supabase の接続情報を設定してください。</p><p class="muted">詳しくは README.md をご確認ください。</p></section>
-    <section id="loginView" class="auth-view hidden">
-      <div class="brand-mark">✓</div><h1>業務日報 提出管理</h1><p class="muted">日報の提出状況を、かんたんに管理。</p>
-      <form id="loginForm" class="card form-card"><label>メールアドレス<input id="email" type="email" autocomplete="email" required placeholder="name@example.com"></label><label>パスワード<input id="password" type="password" autocomplete="current-password" required placeholder="パスワード"></label><p id="loginError" class="error hidden"></p><button class="button primary" type="submit">ログイン</button></form>
+  <main class="app-container">
+    <header class="page-header">
+      <p class="eyebrow">DAILY REPORT</p>
+      <h1>業務日報 提出管理</h1>
+      <p id="today-date" class="today-date" aria-live="polite"></p>
+    </header>
+
+    <section class="card today-card" aria-labelledby="today-heading">
+      <div class="section-heading">
+        <div>
+          <p class="section-label">TODAY</p>
+          <h2 id="today-heading">今日の提出状況</h2>
+        </div>
+      </div>
+      <div id="today-status" class="today-status" aria-live="polite"></div>
+      <button id="submit-button" class="submit-button" type="button">日報を提出済みにする</button>
+      <p id="weekend-message" class="weekend-message" hidden>本日は営業日ではありません</p>
     </section>
-    <section id="mainView" class="hidden">
-      <header class="topbar"><div><p class="eyebrow">DAILY REPORT</p><h1>業務日報 提出管理</h1></div><button id="logoutButton" class="text-button">ログアウト</button></header>
-      <div class="welcome"><div><p id="todayLabel" class="muted"></p><h2><span id="userName"></span>さん、おはようございます</h2></div><span id="roleBadge" class="role-badge"></span></div>
-      <nav class="tabs" aria-label="画面切替"><button class="tab active" data-view="home">ホーム</button><button class="tab" data-view="history">提出履歴</button><button id="managerTab" class="tab hidden" data-view="dashboard">チーム状況</button><button id="monthlyTab" class="tab hidden" data-view="monthly">月間状況</button></nav>
-      <section id="homePanel" class="panel"><article class="card report-card"><p class="eyebrow">TODAY'S REPORT</p><h2>本日の日報</h2><div id="todayStatus"></div></article></section>
-      <section id="historyPanel" class="panel hidden"><div class="section-heading"><div><p class="eyebrow">MY HISTORY</p><h2>自分の提出履歴</h2></div><p class="muted">直近30営業日</p></div><div id="historyList" class="card list-card"></div></section>
-      <section id="dashboardPanel" class="panel hidden"><div class="section-heading"><div><p class="eyebrow">TEAM TODAY</p><h2>本日の提出状況</h2></div><label class="switch"><input id="unsubmittedFilter" type="checkbox"><span>未提出のみ表示</span></label></div><div id="kpiGrid" class="kpi-grid"></div><div id="teamList" class="card list-card team-list"></div></section>
-      <section id="monthlyPanel" class="panel hidden"><div class="section-heading"><div><p class="eyebrow">TEAM MONTHLY</p><h2>月間提出状況</h2></div><label class="month-picker">対象月<input id="monthPicker" type="month"></label></div><div id="monthlyRate" class="card monthly-summary"></div><div class="table-wrap card"><table><thead><tr><th>氏名</th><th>部署</th><th>提出</th><th>遅延</th><th>未提出</th><th>提出率</th></tr></thead><tbody id="monthlyList"></tbody></table></div></section>
+
+    <section class="card monthly-card" aria-labelledby="monthly-heading">
+      <div class="monthly-top">
+        <div>
+          <p class="section-label">MONTHLY</p>
+          <h2 id="monthly-heading">月間提出状況</h2>
+        </div>
+        <label class="month-picker">
+          <span>表示する月</span>
+          <input id="month-input" type="month" aria-label="表示する月" />
+        </label>
+      </div>
+
+      <div class="summary" aria-label="月間サマリー">
+        <div class="summary-item"><span>営業日</span><strong id="business-days">0日</strong></div>
+        <div class="summary-item"><span>提出済み</span><strong id="submitted-days">0日</strong></div>
+        <div class="summary-item"><span>提出率</span><strong id="submission-rate">0%</strong></div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>日付</th><th>曜日</th><th>提出状況</th><th>提出時刻</th></tr>
+          </thead>
+          <tbody id="monthly-table-body"></tbody>
+        </table>
+      </div>
     </section>
   </main>
-  <script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
